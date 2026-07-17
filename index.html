@@ -2,96 +2,58 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Lecteur IPTV Actif</title>
-    <!-- Script pour charger le flux -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script> <!-- -->
+    <title>Lecteur IPTV Simple</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { font-family: sans-serif; background: #111; color: white; text-align: center; margin-top: 20px; }
-        #channels-container { margin-top: 20px; }
-        button { margin: 5px; padding: 10px 15px; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
-        button:hover { background: #555; }
-        #loading-msg { color: #aaa; font-style: italic; }
+        #channels-container { margin-top: 20px; padding: 10px; background: #222; border-radius: 8px; display: inline-block;}
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; font-weight: bold;}
+        button:hover { background: #0056b3; }
+        video { background: #000; border: 2px solid #333; }
     </style>
 </head>
 <body>
-    <!-- Le lecteur vidéo -->
-    <video id="video" controls width="640"></video> <!--[cite: 2] -->
+    
+    <video id="video" controls width="640" height="360"></video>
 
-    <!-- Conteneur pour les boutons des chaînes actives -->
+    <!-- Liste de vos chaînes -->
     <div id="channels-container">
-        <p id="loading-msg">Vérification des chaînes en cours...</p>
+        <h3>Chaînes Françaises</h3>
+        <button onclick="playStream('VOTRE_LIEN_TF1.m3u8')">TF1</button>
+        <button onclick="playStream('VOTRE_LIEN_FR2.m3u8')">France 2</button>
+        <button onclick="playStream('VOTRE_LIEN_CANAL.m3u8')">Canal+</button>
+
+        <h3>Chaînes Arabes & Sport</h3>
+        <button onclick="playStream('VOTRE_LIEN_ALJAZEERA.m3u8')">Al Jazeera</button>
+        <button onclick="playStream('VOTRE_LIEN_MBC.m3u8')">MBC</button>
+        <button onclick="playStream('VOTRE_LIEN_BEIN1.m3u8')">BeIN Sports 1</button>
+        <button onclick="playStream('VOTRE_LIEN_BEIN2.m3u8')">BeIN Sports 2</button>
     </div>
 
     <script>
-        const video = document.getElementById('video'); //[cite: 2]
+        const video = document.getElementById('video');
         let hlsPlayer;
 
-        // 1. VOTRE LISTE DE CHAÎNES
-        // Remplacez les 'URL_DU_FLUX_ICI.m3u8' par vos vrais liens
-        const myChannels = [
-            { name: "TF1 (FR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
-            { name: "France 2 (FR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
-            { name: "Canal+ (FR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
-            { name: "Al Jazeera (AR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
-            { name: "MBC (AR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
-            { name: "BeIN Sports 1", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
-            { name: "BeIN Sports 2", url: "URL_DU_FLUX_ICI.m3u8" } //[cite: 2]
-        ];
-
-        const container = document.getElementById('channels-container');
-        const loadingMsg = document.getElementById('loading-msg');
-        let activeCount = 0;
-
-        // 2. FONCTION DE LECTURE (Basée sur votre code précédent)
         function playStream(videoSrc) {
-            if (Hls.isSupported()) { //[cite: 2]
-                if (hlsPlayer) { hlsPlayer.destroy(); } // Détruit le flux précédent s'il existe
-                hlsPlayer = new Hls(); //[cite: 2]
-                hlsPlayer.loadSource(videoSrc); //[cite: 2]
-                hlsPlayer.attachMedia(video); //[cite: 2]
+            if (Hls.isSupported()) {
+                if (hlsPlayer) { hlsPlayer.destroy(); } 
+                hlsPlayer = new Hls();
+                hlsPlayer.loadSource(videoSrc);
+                hlsPlayer.attachMedia(video);
                 hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function() {
                     video.play();
                 });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) { //[cite: 2]
-                video.src = videoSrc; //[cite: 2]
+                // Si la chaîne est morte, on l'affiche dans la console (F12)
+                hlsPlayer.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        console.error("Erreur fatale : Ce lien est mort ou bloqué par le serveur (CORS).");
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc;
                 video.play();
             }
         }
-
-        // 3. FONCTION DE VÉRIFICATION
-        async function checkAndAddChannel(channel) {
-            try {
-                // Tente de contacter le lien sans le télécharger entièrement (méthode HEAD)
-                const response = await fetch(channel.url, { method: 'HEAD', cache: 'no-cache' });
-                
-                if (response.ok) {
-                    // Si le lien répond, on crée le bouton
-                    const btn = document.createElement("button");
-                    btn.textContent = channel.name;
-                    btn.onclick = () => playStream(channel.url);
-                    container.appendChild(btn);
-                    activeCount++;
-                }
-            } catch (error) {
-                // Si erreur (lien mort), on l'ignore silencieusement
-                console.warn(channel.name + " est morte ou bloquée.");
-            }
-        }
-
-        // 4. LANCEMENT AUTOMATIQUE
-        async function init() {
-            // Teste toutes les chaînes de la liste
-            await Promise.all(myChannels.map(checkAndAddChannel));
-            
-            // Supprime le message "Vérification en cours..."
-            loadingMsg.style.display = 'none';
-            
-            if (activeCount === 0) {
-                container.innerHTML = "<p>Aucune chaîne active trouvée (vérifiez vos liens).</p>";
-            }
-        }
-
-        init();
     </script>
 </body>
 </html>
