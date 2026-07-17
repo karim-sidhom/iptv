@@ -1,53 +1,96 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lecteur IPTV Pro</title>
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <title>Lecteur IPTV Actif</title>
+    <!-- Script pour charger le flux -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script> <!-- -->
     <style>
-        body { margin: 0; display: flex; height: 100vh; background: #000; }
-        #list { width: 350px; overflow-y: auto; background: #1a1a1a; color: #fff; }
-        .item { padding: 12px; border-bottom: 1px solid #333; cursor: pointer; }
-        .item:hover { background: #444; }
-        #main { flex: 1; display: flex; align-items: center; justify-content: center; }
+        body { font-family: sans-serif; background: #111; color: white; text-align: center; margin-top: 20px; }
+        #channels-container { margin-top: 20px; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
+        button:hover { background: #555; }
+        #loading-msg { color: #aaa; font-style: italic; }
     </style>
 </head>
 <body>
-    <div id="list">Chargement des données depuis l'API...</div>
-    <div id="main">
-        <video id="player" class="video-js vjs-big-play-centered" controls width="800" height="450"></video>
+    <!-- Le lecteur vidéo -->
+    <video id="video" controls width="640"></video> <!--[cite: 2] -->
+
+    <!-- Conteneur pour les boutons des chaînes actives -->
+    <div id="channels-container">
+        <p id="loading-msg">Vérification des chaînes en cours...</p>
     </div>
 
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script>
-        const player = videojs('player');
-        
-        // Utilisation du proxy pour contourner les blocages de l'API GitHub
-        const API_CHANNELS = 'https://corsproxy.io/?https://iptv-org.github.io/api/channels.json';
-        const API_STREAMS = 'https://corsproxy.io/?https://iptv-org.github.io/api/streams.json';
+        const video = document.getElementById('video'); //[cite: 2]
+        let hlsPlayer;
 
-        async function init() {
-            const [cRes, sRes] = await Promise.all([fetch(API_CHANNELS), fetch(API_STREAMS)]);
-            const channels = await cRes.json();
-            const streams = await sRes.json();
+        // 1. VOTRE LISTE DE CHAÎNES
+        // Remplacez les 'URL_DU_FLUX_ICI.m3u8' par vos vrais liens
+        const myChannels = [
+            { name: "TF1 (FR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
+            { name: "France 2 (FR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
+            { name: "Canal+ (FR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
+            { name: "Al Jazeera (AR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
+            { name: "MBC (AR)", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
+            { name: "BeIN Sports 1", url: "URL_DU_FLUX_ICI.m3u8" }, //[cite: 2]
+            { name: "BeIN Sports 2", url: "URL_DU_FLUX_ICI.m3u8" } //[cite: 2]
+        ];
 
-            // Filtrage exclusif Bein Sports
-            const bein = channels.filter(c => c.name.toLowerCase().includes("bein"));
-            
-            document.getElementById('list').innerHTML = '';
-            bein.forEach(ch => {
-                const div = document.createElement('div');
-                div.className = 'item';
-                div.innerText = ch.name;
-                div.onclick = () => {
-                    const s = streams.find(x => x.channel === ch.id);
-                    if(s) {
-                        player.src({ src: s.url, type: 'application/x-mpegURL' });
-                        player.play();
-                    }
-                };
-                document.getElementById('list').appendChild(div);
-            });
+        const container = document.getElementById('channels-container');
+        const loadingMsg = document.getElementById('loading-msg');
+        let activeCount = 0;
+
+        // 2. FONCTION DE LECTURE (Basée sur votre code précédent)
+        function playStream(videoSrc) {
+            if (Hls.isSupported()) { //[cite: 2]
+                if (hlsPlayer) { hlsPlayer.destroy(); } // Détruit le flux précédent s'il existe
+                hlsPlayer = new Hls(); //[cite: 2]
+                hlsPlayer.loadSource(videoSrc); //[cite: 2]
+                hlsPlayer.attachMedia(video); //[cite: 2]
+                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) { //[cite: 2]
+                video.src = videoSrc; //[cite: 2]
+                video.play();
+            }
         }
+
+        // 3. FONCTION DE VÉRIFICATION
+        async function checkAndAddChannel(channel) {
+            try {
+                // Tente de contacter le lien sans le télécharger entièrement (méthode HEAD)
+                const response = await fetch(channel.url, { method: 'HEAD', cache: 'no-cache' });
+                
+                if (response.ok) {
+                    // Si le lien répond, on crée le bouton
+                    const btn = document.createElement("button");
+                    btn.textContent = channel.name;
+                    btn.onclick = () => playStream(channel.url);
+                    container.appendChild(btn);
+                    activeCount++;
+                }
+            } catch (error) {
+                // Si erreur (lien mort), on l'ignore silencieusement
+                console.warn(channel.name + " est morte ou bloquée.");
+            }
+        }
+
+        // 4. LANCEMENT AUTOMATIQUE
+        async function init() {
+            // Teste toutes les chaînes de la liste
+            await Promise.all(myChannels.map(checkAndAddChannel));
+            
+            // Supprime le message "Vérification en cours..."
+            loadingMsg.style.display = 'none';
+            
+            if (activeCount === 0) {
+                container.innerHTML = "<p>Aucune chaîne active trouvée (vérifiez vos liens).</p>";
+            }
+        }
+
         init();
     </script>
 </body>
