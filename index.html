@@ -1,79 +1,31 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Bein Sports Player</title>
-    <style>
-        body { display: flex; font-family: sans-serif; height: 100vh; margin: 0; background: #000; color: white; }
-        #sidebar { width: 300px; overflow-y: auto; border-right: 1px solid #444; background: #1a1a1a; }
-        .channel-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #333; transition: 0.3s; }
-        .channel-item:hover { background: #444; }
-        #player-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; }
-        video { width: 100%; max-height: 90vh; background: #000; }
-    </style>
-</head>
+<html>
+<head><meta charset="UTF-8"><style>
+    body { display: flex; background: #000; color: #fff; height: 100vh; margin: 0; }
+    #list { width: 300px; border-right: 1px solid #333; overflow-y: auto; }
+    .item { padding: 15px; cursor: pointer; border-bottom: 1px solid #222; }
+    .item:hover { background: #444; }
+    video { flex-grow: 1; height: 100%; }
+</style></head>
 <body>
-
-<div id="sidebar">
-    <h3 style="padding:15px; margin:0; border-bottom:1px solid #444;">Bein Sports</h3>
-    <div id="list">Chargement des chaînes...</div>
-</div>
-
-<div id="player-container">
+    <div id="list"></div>
     <video id="video" controls autoplay></video>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script>
-    const video = document.getElementById('video');
-    const listEl = document.getElementById('list');
-    const hls = new Hls();
-
-    async function startPlayer() {
-        try {
-            // Lecture des fichiers locaux
-            const [cRes, sRes] = await Promise.all([
-                fetch('./channels.json'),
-                fetch('./streams.json')
-            ]);
-            
-            const channels = await cRes.json();
-            const streams = await sRes.json();
-
-            // Filtrage : On cherche "bein" dans le nom
-            const beinList = channels.filter(c => 
-                c.name.toLowerCase().includes("bein")
-            );
-
-            if (beinList.length === 0) {
-                listEl.innerText = "Aucune chaîne 'Bein' trouvée.";
-                return;
-            }
-
-            listEl.innerHTML = '';
-            beinList.forEach(ch => {
-                const div = document.createElement('div');
-                div.className = 'channel-item';
-                div.innerText = ch.name;
-                div.onclick = () => {
-                    const stream = streams.find(s => s.channel === ch.id);
-                    if (stream) {
-                        hls.loadSource(stream.url);
-                        hls.attachMedia(video);
-                        video.play();
-                    } else {
-                        alert("Flux non disponible pour " + ch.name);
-                    }
-                };
-                listEl.appendChild(div);
-            });
-        } catch (err) {
-            listEl.innerText = "Erreur : Assurez-vous que les fichiers JSON sont bien dans le même dossier et utilisez un serveur local (Live Server).";
-            console.error(err);
-        }
-    }
-
-    startPlayer();
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="./channels.js"></script>
+    <script src="./streams.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const hls = new Hls();
+        channels.forEach(ch => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerText = ch.name;
+            div.onclick = () => {
+                const s = streams.find(x => x.channel === ch.id);
+                if(s) { hls.loadSource(s.url); hls.attachMedia(video); video.play(); }
+            };
+            document.getElementById('list').appendChild(div);
+        });
+    </script>
 </body>
 </html>
