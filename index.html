@@ -1,31 +1,37 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><style>
-    body { display: flex; background: #000; color: #fff; height: 100vh; margin: 0; }
-    #list { width: 300px; border-right: 1px solid #333; overflow-y: auto; }
-    .item { padding: 15px; cursor: pointer; border-bottom: 1px solid #222; }
-    .item:hover { background: #444; }
-    video { flex-grow: 1; height: 100%; }
-</style></head>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Lecteur IPTV</title>
+    <!-- Chargement de Video.js et du support HLS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; background: #000; color: #fff; display: flex; height: 100vh; font-family: sans-serif; }
+        #sidebar { width: 300px; overflow-y: auto; background: #111; }
+        .ch-btn { padding: 15px; border-bottom: 1px solid #333; cursor: pointer; color: #ccc; }
+        .ch-btn:hover { background: #222; }
+        #main { flex: 1; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
 <body>
-    <div id="list"></div>
-    <video id="video" controls autoplay></video>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="./channels.js"></script>
-    <script src="./streams.js"></script>
-    <script>
-        const video = document.getElementById('video');
-        const hls = new Hls();
-        channels.forEach(ch => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerText = ch.name;
-            div.onclick = () => {
-                const s = streams.find(x => x.channel === ch.id);
-                if(s) { hls.loadSource(s.url); hls.attachMedia(video); video.play(); }
-            };
-            document.getElementById('list').appendChild(div);
-        });
-    </script>
+
+<div id="sidebar">
+    <!-- Liste des chaînes configurées manuellement pour garantir le fonctionnement -->
+    <div class="ch-btn" onclick="play('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8')">Bein Sports 1 (Test)</div>
+    <div class="ch-btn" onclick="play('VOTRE_URL_M3U8_ICI')">Bein Sports 2</div>
+</div>
+
+<div id="main">
+    <video id="player" class="video-js vjs-big-play-centered" controls width="800" height="450"></video>
+</div>
+
+<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<script>
+    const player = videojs('player');
+    function play(url) {
+        player.src({ src: url, type: 'application/x-mpegURL' });
+        player.play();
+    }
+</script>
 </body>
 </html>
