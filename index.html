@@ -2,22 +2,22 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Lecteur IPTV</title>
+    <title>Mon Lecteur TV IPTV</title>
     <style>
-        body { display: flex; font-family: sans-serif; height: 100vh; margin: 0; background: #000; color: white; }
-        #sidebar { width: 350px; overflow-y: auto; border-right: 1px solid #444; background: #1a1a1a; }
-        .channel-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #333; display: flex; align-items: center; }
+        body { display: flex; font-family: sans-serif; height: 100vh; margin: 0; background: #121212; color: white; }
+        #sidebar { width: 350px; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        #list { overflow-y: auto; flex-grow: 1; }
+        .channel-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #222; font-size: 14px; }
         .channel-item:hover { background: #444; }
-        #player-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        video { width: 100%; max-height: 80vh; background: black; }
-        h3 { padding: 10px; margin: 0; background: #000; position: sticky; top: 0; }
+        #player-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; background: black; }
+        video { width: 100%; max-height: 90vh; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h3>Liste des chaînes</h3>
-    <div id="list">Chargement des données...</div>
+    <div style="padding:10px; background:#000;">Liste des chaînes (FR/Arabes/Bein)</div>
+    <div id="list">Chargement des chaînes...</div>
 </div>
 
 <div id="player-container">
@@ -30,41 +30,40 @@
     const listEl = document.getElementById('list');
     const hls = new Hls();
 
-    // Chargement direct depuis votre URL
     async function initApp() {
-        try {
-            const response = await fetch('https://iptv-org.github.io/api/channels.json');
-            const channels = await response.json();
-            
-            // On limite l'affichage pour la performance (les 100 premières)
-            const subset = channels.slice(0, 100); 
-            
-            listEl.innerHTML = '';
-            subset.forEach(ch => {
-                const div = document.createElement('div');
-                div.className = 'channel-item';
-                div.innerText = ch.name;
-                div.onclick = () => playChannel(ch.id);
-                listEl.appendChild(div);
-            });
-        } catch (err) {
-            listEl.innerText = "Erreur de chargement : " + err.message;
-        }
-    }
+        // Chargez vos fichiers localement (indispensable pour la performance)
+        const [resChannels, resStreams] = await Promise.all([
+            fetch('./channels.json'),
+            fetch('./streams.json')
+        ]);
+        const channels = await resChannels.json();
+        const streams = await resStreams.json();
 
-    async function playChannel(id) {
-        // Recherche du flux correspondant
-        const res = await fetch('https://iptv-org.github.io/api/streams.json');
-        const streams = await res.json();
-        const stream = streams.find(s => s.channel === id);
-        
-        if (stream) {
-            hls.loadSource(stream.url);
-            hls.attachMedia(video);
-            video.play();
-        } else {
-            alert("Aucun flux disponible pour cette chaîne.");
-        }
+        // FILTRAGE : Français (FR), Arabe (EG, MA, TN, DZ, SA, etc.), Bein Sports
+        const filtered = channels.filter(c => {
+            const isFR = c.country === "FR";
+            const isArabe = ["EG", "MA", "TN", "DZ", "SA", "AE", "QA", "KW"].includes(c.country);
+            const isBein = c.name.toLowerCase().includes("bein");
+            return isFR || isArabe || isBein;
+        });
+
+        listEl.innerHTML = '';
+        filtered.forEach(ch => {
+            const div = document.createElement('div');
+            div.className = 'channel-item';
+            div.innerText = ch.name;
+            div.onclick = () => {
+                const stream = streams.find(s => s.channel === ch.id);
+                if (stream) {
+                    hls.loadSource(stream.url);
+                    hls.attachMedia(video);
+                    video.play();
+                } else {
+                    alert("Flux non disponible pour " + ch.name);
+                }
+            };
+            listEl.appendChild(div);
+        });
     }
 
     initApp();
